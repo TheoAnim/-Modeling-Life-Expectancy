@@ -1,0 +1,666 @@
+---
+title: "Regression Analyisis: Final project"
+author: " Group members: Cole Ryan, Ebise Abdi, Theophilus Anim Bediako"
+date: "May 5, 2022"
+output:
+  pdf_document:
+    fig_caption: true
+    highlight: pygments
+    keep_tex: yes
+    number_sections: no
+    toc: no
+header-includes: 
+  - \usepackage{float}
+  - \usepackage{longtable}
+  -  \usepackage{titling}
+    \pretitle{\begin{center}
+      \includegraphics[width=2in,height=3in]{SDSU.png}\LARGE\\}
+    \posttitle{\end{center}}
+---
+\centering
+
+\raggedright
+
+\clearpage
+
+\tableofcontents
+
+\newpage
+
+\listoffigures
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
+knitr::opts_knit$set(eval.after = "fig.cap")
+```
+```{r, include = FALSE}
+library(ggplot2)
+library(leaps)
+library(car)
+library(ggcorrplot)
+library(glmnet)
+library(visdat)
+library(dplyr)
+```
+
+## Introduction
+The number of years a person can expect to live is known as life expectancy. Life expectancy is an important indicator for gauging population health. It is based on an estimate of the average age individuals of a particular population will be when they die (Ortiz-Ospina, 2013). In practice, estimating life expectancy entails predicting the likelihood of surviving successive years of life. It shows the average death age of a population.
+
+This project uses multiple linear regression to model the relationship between life expectancy and the 27 potential independent variables. Life expectancy at birth is the response or dependent variable. The explanatory or independent variables include life expectancy at 60, adult mortality, infant mortality, age 1-4 mortality, alcohol, BMI, age 5-19 thinness, age 5 – 19 obesity, hepatitis, measles, polio, diphtheria, basic water, doctors, hospitals, GNI capita, GGHE D, CHE GDP, population, HIV/AIDS, poverty, education expenditure, adult literacy, mean years of schooling. Other variables include country, country code, region, and year.
+
+The original data is owned by The World Health Organization (WHO). The World Health Organization (WHO) through the Global Health Observatory (GHO) data repository keeps track of all countries’ health status as well as many other related parameters. The datasets are made available to be used by researchers for health data analysis. The main data format is by year and country. All other variables are dependent on these two variables.
+
+Records were obtained from 183 countries from 2000 to 2016 (17 years). The dataset consists of 3111 rows and 32 columns. The first three columns are categorical variables (country, country code, and region). The 5th column is the dependent variable, life expectancy. The rest of the columns are the independent variables. The researchers found 15246 missing values.
+
+The researchers generated a random sample of size 51 out of 183 countries. The samples were drawn based on the number of countries in each region.
+
+## Variable Descriptions
+Life expectancy at birth: It represents the overall mortality level of a population.
+
+*Adult Mortality:* It represents the probability that a person between age 15 and age 60 dies per 1000 population.
+
+*Infant mortality:* It represents the number of deaths of young children under 1 year per 1000 population.
+
+*Age 1_4 mort:* It represents the death rate between ages 1 and 4.
+
+*Alcohol:* It represents the amount of alcohol consumed per adult of 15years and above.
+
+*BMI:* It represents the average body mass index of a given population.
+
+*Thinness 5-19 years:* It represents the prevalence of thinness among children from 5 to 19 years.
+
+*Age 5-19 obesity:* It represents the prevalence of obesity among children from 5 to 19 years.
+
+*Hepatitis:* It represents vaccine coverage for a one-year-old. It is expressed as a percentage.
+
+*Measles:* It represents the reported number of cases per 1000 population.
+
+*Polio:* it represents the polio immunization coverage among 1-year-olds.
+
+*Diphtheria:* It represents infant immunization coverage.
+
+*Basic Water:* Percentage of population using at least basic drinking-water services.
+
+*GGHE-d:* It represents the domestic general government health expenditure as a percentage of
+gross domestic product (GDP).
+
+*CHE GDP:* It represents current health expenditure as a percentage of GDP.
+
+*UNE infant:* Infant mortality rate (per 1000 live births).
+
+*UNE GNI:* GNI (gross national income) per capita, measured in dollars.
+
+## Research Problem
+What are the factors affecting life expectancy? Our project focuses on whether the 16 variables we have selected affect life expectancy.  If not, what are the significant factors contributing to life expectancy. Several can be the outcomes of the research; for example, if alcohol consumption is negatively related to life expectancy, then a country that wants to improve life expectancy would have to implement policies to reduce alcohol consumption. 
+
+## Statistical Theories
+*Ordinary Least Squares Regression(OLS):* attempts to model the relationship between two or more explanatory variables and a response variable by fitting a linear equation to observed data. Generally, multiple linear regression is represented as $$y_i=\beta{0}+\beta_{1}x_{i1} + \beta_{2}x_{i2}+ \dots+ \beta{p}x_{ip}+\epsilon_i$$ \quad  $ = 1,2,...,n $\quad where $y_i$ is the dependent or predicted variable
+$\beta_{0}:$\quad intercept
+$\beta_k, k=1, \dots, p-1:$ \quad the change in the mean response with a unit increase in a variable $X_k$, when all other predictors are held constant. The OLS regression is used under the following assumptions:
+linear relationship,normality,, no autocorrelation, homoscedastic (constant variance in residuals), more observations (n) than features(p) and no or little multicollinearity.
+
+Typically, when the assumptions underpinning OLS regression are satisfied, the model coefficients are unbiased and have the smallest variance among all possible linear estimators. Due to the large volume of datasets in today’s world, our OLS assumptions are often violated. It is common for OLS models to overfit the training sample in such situations. Overfitting implies high variance. When these concerns arise, regularized regression (also known as penalized models or shrinkage methods) can be used to manage parameter estimates as an alternative to OLS regression. Regularized regression puts constraints on the magnitude of the coefficients and will progressively shrink them towards zero, reduce the variance and decrease our sample error (Boehmke, 2018). The common regularization methods are ridge regression, the least absolute shrinkage and selection operator(lasso) regression and the elastic net. (Zou & Hastie, 2005). 
+The objective function of regularized regression methods is very similar to OLS regression; however, we add a penalty parameter (P).
+
+| Regularized method        |                 Objective function                   |
+| ----------- | ----------- |
+| Ridge regression          | minimize$\{SSE + \lambda \sum_{j=1}^{p}\beta_{j}^2\}$|
+| Lasso regression          | minimize$\{SSE + \lambda \sum_{j=1}^{p}|\beta_{j}|\}$|
+| Elastic nets              | minimize$\{SSE + \lambda_1 \sum_{j=1}^{p}\beta_{j}^2 + \lambda_2\sum_{j=1}^{p}|\beta_{j}|\}$|
+The ridge regression approach pushes variables to approximately but not equal to zero, the lasso method will actually push coefficients to zero. Elastic nets combine ridge and lasso procedures.
+
+## Data Exploration
+```{r, include=FALSE}
+## sample ~25% of countries for each region to evaluate in model
+set.seed(2022)
+raw <- read.csv("E:/THEO ANIM/SDSU GRAD SCHOOL/SPRING 2022/REGRESSION ANALYSIS/PROJECTS/who_life_exp updated.csv")
+raw2016 <- raw[raw$year==2016,]
+
+africa <- raw2016[raw2016$region=='Africa',]
+nafrica <- round(nrow(africa)/3.66, digits=0)
+samp <- sample(1:nrow(africa), nafrica)
+africa_dat <- africa[samp,]
+
+americas <- raw2016[raw2016$region=='Americas',]
+namericas <- round(nrow(americas)/3.66, digits=0)
+samp <- sample(1:nrow(americas), namericas)
+americas_dat <- americas[samp,]
+
+eastmed <- raw2016[raw2016$region=='Eastern Mediterranean',]
+neastmed <- round(nrow(eastmed)/3.66, digits=0)
+samp <- sample(1:nrow(eastmed), neastmed)
+eastmed_dat <- eastmed[samp,]
+
+europe <- raw2016[raw2016$region=='Europe',]
+neurope <- round(nrow(europe)/3.66, digits=0)
+samp <- sample(1:nrow(europe), neurope)
+europe_dat <- europe[samp,]
+
+sea <- raw2016[raw2016$region=='South-East Asia',]
+nsea <- round(nrow(sea)/3.66, digits=0)
+samp <- sample(1:nrow(sea), nsea)
+sea_dat <- sea[samp,]
+
+westpac <- raw2016[raw2016$region=='Western Pacific',]
+nwestpac <- round(nrow(westpac)/3.66, digits=0)
+samp <- sample(1:nrow(westpac), nwestpac)
+westpac_dat <- westpac[samp,]
+
+
+dat <- rbind(africa_dat, americas_dat, eastmed_dat, europe_dat, sea_dat, westpac_dat)
+```
+
+
+```{r, echo=FALSE,  fig.width=6, fig.height=4, fig.cap = "Data visualization"}
+par(mfrow=c(1,1), mar=c(5, 4, 6, 2))
+
+# display missing values and data values
+vis_dat(raw,sort_type = TRUE, palette = "cb_safe")
+```
+
+```{r, echo=FALSE, fig.width=6, fig.height=4, fig.cap = "Missing values and present values"}
+vis_miss(raw)#checking missing data
+#mtext("Figure 2: Bean Dimension Spreads by Class")
+
+```
+
+
+The data set contains 3111 observations of 31 independent variables. We've 15.8\% of missing values of the data set. At the next step, we dropped the predictor variables with more than 5 missing values. For the predictor variables with less missing values, we replaced the missing value with the mean value based on the continent. The sample data is chosen randomly, about 1/3 of the countries from each region. The sample data contains 51 of observations of 17 variables. 
+\vspace{1.5cm}
+\begin{figure}
+\begin{center}
+  \includegraphics[width=6.5in,height=4in]{samplemap.png}\LARGE
+\end{center}
+\end{figure}
+
+
+```{r, include = FALSE}
+#drop predictor variables with more than five missing values
+goodcols <- c()
+for (i in 1:ncol(dat)){
+  sum <- 0
+  for (j in 1:nrow(dat)){
+    if (is.na(dat[j,i])){
+      sum <- sum +1
+    }
+  }
+  if (sum < 5){
+    goodcols <- c(goodcols, i)
+  }
+}
+dat <- dat[,goodcols]
+```
+
+```{r, include=FALSE}
+##replace na values with mean values for specific region
+africa <- dat[dat$region=='Africa',]
+if (sum(!complete.cases(africa)) >0){
+  for (i in 1:nrow(africa)){
+    for (j in 1:ncol(africa)){
+      if (is.na(africa[i,j])){
+        africa[i,j] <- mean(africa[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+americas <- dat[dat$region=='Americas',]
+if (sum(!complete.cases(americas)) >0){
+  for (i in 1:nrow(americas)){
+    for (j in 1:ncol(americas)){
+      if (is.na(americas[i,j])){
+        americas[i,j] <- mean(americas[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+eastmed <- dat[dat$region=='Eastern Mediterranean',]
+if (sum(!complete.cases(eastmed)) >0){
+  for (i in 1:nrow(eastmed)){
+    for (j in 1:ncol(eastmed)){
+      if (is.na(eastmed[i,j])){
+        eastmed[i,j] <- mean(eastmed[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+europe <- dat[dat$region=='Europe',]
+if (sum(!complete.cases(europe)) >0){
+  for (i in 1:nrow(europe)){
+    for (j in 1:ncol(europe)){
+      if (is.na(europe[i,j])){
+        europe[i,j] <- mean(europe[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+sea <- dat[dat$region=='South-East Asia',]
+if (sum(!complete.cases(sea)) >0){
+  for (i in 1:nrow(sea)){
+    for (j in 1:ncol(sea)){
+      if (is.na(sea[i,j])){
+        sea[i,j] <- mean(sea[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+westpac <- dat[dat$region=='Western Pacific',]
+if (sum(!complete.cases(westpac)) >0){
+  for (i in 1:nrow(westpac)){
+    for (j in 1:ncol(westpac)){
+      if (is.na(westpac[i,j])){
+        westpac[i,j] <- mean(westpac[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+dat <- rbind(africa, americas, eastmed, europe, sea, westpac)
+data <- dat[,c(5,7:22,24)]
+```
+
+```{r, echo=FALSE,  fig.width=6, fig.height=4, fig.cap = "Data visualization afte NA values replacement"}
+par(mfrow=c(1,1), mar=c(5, 4, 6, 2))
+
+# display missing values and data values
+vis_dat(data,sort_type = TRUE, palette = "cb_safe")
+```
+
+```{r, echo=FALSE,  fig.width=6, fig.height=4, fig.cap = "Data visualization after NA values replacement"}
+vis_miss(data)#checking missing data
+```
+
+\newpage
+
+The boxplot shows that some variables have outliers, we will have to pay attention later to see if the outliars are influential.
+
+```{r, echo=FALSE,  fig.width=6, fig.height=4, fig.cap = "The boxplot of the variables"}
+par(mar=c(.3,.3,.3,.3))
+
+par(mfrow = c(4,5))
+invisible(lapply(1:ncol(data), function(i) boxplot(as.data.frame(scale(data[, i])))))
+```
+
+
+\newpage 
+
+```{r, echo=FALSE, fig.width=6, fig.height=4, fig.cap = "The correlation plot"}
+## find variables with very low correlation with life expectancy and remove them
+corr <- round(cor(data),1)
+ggcorrplot(corr,hc.order = TRUE, type = "lower", outline.color = "white")
+```
+
+The correlation plot indicates that some of our independent variables are highly correlated with each other. Moving forward we will have to address this in the models that we create. 
+
+
+```{r, include=FALSE}
+#une_pop has almost no correlation with the other variables, dropped 
+remove <- c()
+for (i in 1:ncol(corr)){
+  if (abs(corr[1,i]) < .1){
+    remove <- c(remove, i)
+  }
+}
+if (length(remove) > 0){
+  data <- data[,-remove]
+}
+```
+
+\newpage
+## Building Models
+Our goal is to build a multiple linear regression model, in the general form:
+\[
+Y_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \dots + \beta_{p-1} x_{i,p-1} + \epsilon_i \quad i=1,...,51  \quad p-1=16
+\]\
+where $Y_i$ represent the response variable life expectancy,
+
+$x_{i,p-1}$ are the predictor variables, $\beta_0$ is the intercept and the $\beta_is$ are the coefficients of the predictor variables.
+
+```{r, echo=FALSE}
+#build a model with all remaining parameters, this will serve as full model
+fullmodel <- lm(life_expect~.,data=data)
+fullmodel$coefficients
+```
+These would be our $\beta_i$ estimates for our full model.
+
+We have seen from the correlation plot that some of the variables may be correlated. We can use the VIF to remove variables until our model has a low amount of co-linearity. Below are our final VIF values and a model with reduced co-linearity.
+```{r, echo=FALSE}
+## one at a time remove variables with high multicollinearity until the model has little
+datav <- data
+thresh <- .001
+#check multicollinearity
+vif_fm <- vif(fullmodel)
+#vif_fm
+tempvif <- vif_fm
+while(max(tempvif) > 10){
+   for (i in 1:length(tempvif)){
+     if (abs(tempvif[i] - max(tempvif)) < thresh){
+        datav <- datav[,-(1+i)]
+     }
+   }
+   mod <- lm(life_expect~., data=datav)
+   tempvif <- vif(mod)
+
+}
+tempvif
+```
+
+```{r, echo=FALSE,fig.width=6, fig.height=4, fig.cap="Correlation plot after using AIC criterion"}
+## closer look at reduced model
+corr2 <- round(cor(datav),1)
+par(mfrow = c(3,4))
+ggcorrplot(corr2, hc.order=TRUE, type = "lower", outline.color="white")
+```
+
+
+We can build a reduced model from these variables. The coefficients in this model are more meaningful because we have greatly reduced multicolinearity.
+```{r, echo=FALSE}
+mod$coefficients
+```
+
+
+Using this new model with a reduced number of variables, we can use the step function with the AIC criteria to find a new 'best' model:
+```{r, echo=FALSE,fig.width=6, fig.height=4, fig.cap="Residual Analysis plot"}
+par(mfrow = c(2,2))
+par(mar=c(2,2,2,2))
+## using step function, build a model based on aic criteria
+start <- lm(life_expect~1, data=datav)
+all <- lm(life_expect~., data=datav)
+
+mod2 <- step(start,formula(all),direction="both", trace=0)
+mod2$coefficients
+plot(mod2)
+```
+
+
+```{r,echo=FALSE, fig.width=6, fig.height=4, fig.cap = "Regression function of the full model"}
+par(mfrow = c(3,4))
+par(mar=c(1,1,1,1))
+
+plot(life_expect~., data=datav)
+```
+
+
+Some of the data appears to not be linearly related to life expectancy. We can try a transformation to see if we can get a better model.
+
+From the box-cox method, we can try the transformation $Y^{*1}=Y^{1/2}$ to get model
+```{r,  echo=FALSE, fig.width=5, fig.height=4, fig.cap = "Residual Analysis, Y^(1/2)"}
+## from box cox, try y^(1/2) transformation on our dependent variable
+par(mfrow = c(2,2))
+par(mar=c(2,2,2,2))
+
+datat1 <- datav
+datat1$life_expect <- (datav$life_expect)^(1/2)
+start <- lm(life_expect~1, data=datat1)
+all <- lm(life_expect~., data=datat1)
+mod3 <- step(start,formula(all),direction="both", trace=0)
+mod3$coefficients
+plot(mod3)
+```
+
+We can also try the transformation $Y^{*2}=Y^{-1/2}$ to get model
+```{r,echo=FALSE, fig.width=6, fig.height=4, fig.cap = "Residual Analysis, Y^(-1/2)"}
+par(mfrow = c(2,2))
+par(mar=c(2,2,2,2))
+## from box cox, try y^(-1/2) transformation on our dependent variable
+datat2 <- datav
+datat2$life_expect <- (datav$life_expect)^(-1/2)
+start <- lm(life_expect~1, data=datat2)
+all <- lm(life_expect~., data=datat2)
+mod4 <- step(start,formula(all),direction="both", trace=0)
+mod4$coefficients
+plot(mod4)
+```
+
+The third model, with transformation $Y^{*2}=Y^{-1/2}$, appears to best satisfy the assumptions for linear regression.
+
+We can also check the r-squared values for the models.
+```{r, echo=FALSE}
+## find mse of the negative square root transformation model
+Y_r2 <- summary(mod2)$r.squared
+sqrtY_r2 <- summary(mod3)$r.squared
+nsqrt_r2 <- summary(mod4)$r.squared
+r2 <- c(Y_r2, sqrtY_r2, nsqrt_r2)
+
+Y_r2a <- summary(mod2)$adj.r.squared
+sqrtY_r2a <- summary(mod3)$adj.r.squared
+nsqrtY_r2a <- summary(mod4)$adj.r.squared
+r2a <- c(Y_r2a, sqrtY_r2a, nsqrtY_r2a)
+
+aic_models <- data.frame(rbind(r2, r2a))
+colnames(aic_models) <- c("Y", "Y^(1/2)", "Y(-1/2)")
+round(aic_models, 3)
+```
+
+For r-squared and adjusted r-squared, the $Y^{*2}=Y^{-1/2}$ model performs the best. We can also check adjusted r-squared. This model also meets the assumptions best as well, so we will consider it against other models we can make. 
+
+Other approaches can be used for regression as well. We can use ridge, lasso, and elastic net regression to build other models.
+```{r,echo=FALSE, fig.width=6, fig.height=4, fig.cap = "Lambda Values vs. MSE"}
+set.seed(20)
+y <- (data$life_expect)^(-1/2)
+x <- as.matrix(data[,-1])
+
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+best_lambda <- cv_model$lambda.min
+best_lambda
+plot(cv_model) 
+```
+
+This gives a lambda value for our lasso regression of ~.000162.
+
+We can use this to build the following model:
+```{r, echo=FALSE}
+ridge <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+coef(ridge)
+ridge_predict <- predict(ridge, s = best_lambda, newx = x)
+ridge_resid <- ridge_predict-y
+ridge_mse <- sum((ridge_resid)^2)/50
+```
+
+
+```{r, echo=FALSE}
+lasso <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef(lasso)
+lasso_predict <- predict(lasso, s = best_lambda, newx = x)
+lasso_resid <- lasso_predict-y
+lasso_mse <- sum((lasso_resid)^2)/50
+```
+
+```{r, echo=FALSE}
+alphas <- seq(from=.1, to=.9, length=9)
+mse <- -1
+for (a in alphas){
+  temp_elastic <- glmnet(x, y, alpha = a, lambda = best_lambda)
+  elastic_predict <- predict(temp_elastic, s = best_lambda, newx = x)
+  elastic_resid <- elastic_predict-y
+  temp_mse <- sum((elastic_resid)^2)/50
+  if (temp_mse < mse | mse < 0){
+    elastic <- temp_elastic
+    mse <- temp_mse
+  }
+}
+coef(elastic)
+```
+
+
+Now we can compare our full model to our model we build with reduced variables and the step function, and the model built with lasso.
+
+
+```{r, echo=FALSE, fig.width=7, fig.height=2, fig.cap = "Residual Plots for Ridge, Lasso, & Elastic-Net"}
+## compare full model to model with transformation and lasso model
+par(mar=c(2,2,2,2))
+par(mfrow = c(1,3))
+
+plot(x=fullmodel$fitted.values,y=fullmodel$residuals)
+plot(x=mod4$fitted.values,y=mod4$residuals)
+plot(x=lasso_predict,y=lasso_resid)
+```
+
+
+All of these models appear to be heteroscedastic, so we will compare all three of them.  
+
+R-squared for full model, the model built with AIC criteria on the transformation $Y=Y^{-1/2}$, and the ridge, lasso, and elastic net models built on the same transformation.
+```{r, echo=FALSE}
+## further comparison
+n <- nrow(datav)
+mod_names <- c("full", "transform", "ridge", "lasso", "elastic")
+models <- NA
+full_r2 <- summary(fullmodel)$r.squared
+transform_r2 <- summary(mod4)$r.squared
+ridge_r2 <- ridge$dev.ratio
+lasso_r2 <- lasso$dev.ratio
+elastic_r2 <- elastic$dev.ratio
+models$r2 <- data.frame(cbind(full_r2, transform_r2, ridge_r2, lasso_r2, elastic_r2))
+colnames(models$r2) <- mod_names
+
+n <- nrow(datav)
+full_r2a <- summary(fullmodel)$adj.r.squared
+transform_r2a <- summary(mod4)$adj.r.squared
+p <- length(ridge[["beta"]]@i)
+ridge_r2a <- 1-(1-ridge$dev.ratio)*(n-1)/(n-p-1)
+p <- length(lasso[["beta"]]@i)
+lasso_r2a <- 1-(1-lasso$dev.ratio)*(n-1)/(n-p-1)
+p <- length(elastic[["beta"]]@i)
+elastic_r2a <- 1-(1-elastic$dev.ratio)*(n-1)/(n-p-1)
+models$r2a <- data.frame(cbind(full_r2a, transform_r2a, ridge_r2a, lasso_r2a, elastic_r2a))
+colnames(models$r2a) <- mod_names
+
+round(rbind(models$r2, models$r2a), 4)
+```
+
+This shows that the ridge regression and elastic nets models are providing the best results based solely on R-squared. When looking at adjusted R-squared what we can see is that the full model is unlikely to be our most suitable option. 
+
+We can also look at adjusted R-squared for the models. 
+
+Now that we have built some models, we can compare how they perform when making predictions on new data. We can use the 132 countries that were not part of our original sample. 
+```{r, echo=FALSE}
+##replace na values with mean values for specific region
+validate <- raw2016[,c("country_code", "region", colnames(data))]
+validate <- subset(validate, !(country_code %in% dat$country_code))
+
+africa <- validate[validate$region=='Africa',]
+if (sum(!complete.cases(africa)) >0){
+  for (i in 1:nrow(africa)){
+    for (j in 1:ncol(africa)){
+      if (is.na(africa[i,j])){
+        africa[i,j] <- mean(africa[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+americas <- validate[validate$region=='Americas',]
+if (sum(!complete.cases(americas)) >0){
+  for (i in 1:nrow(americas)){
+    for (j in 1:ncol(americas)){
+      if (is.na(americas[i,j])){
+        americas[i,j] <- mean(americas[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+eastmed <- validate[validate$region=='Eastern Mediterranean',]
+if (sum(!complete.cases(eastmed)) >0){
+  for (i in 1:nrow(eastmed)){
+    for (j in 1:ncol(eastmed)){
+      if (is.na(eastmed[i,j])){
+        eastmed[i,j] <- mean(eastmed[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+europe <- validate[validate$region=='Europe',]
+if (sum(!complete.cases(europe)) >0){
+  for (i in 1:nrow(europe)){
+    for (j in 1:ncol(europe)){
+      if (is.na(europe[i,j])){
+        europe[i,j] <- mean(europe[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+sea <- validate[validate$region=='South-East Asia',]
+if (sum(!complete.cases(sea)) >0){
+  for (i in 1:nrow(sea)){
+    for (j in 1:ncol(sea)){
+      if (is.na(sea[i,j])){
+        sea[i,j] <- mean(sea[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+westpac <- validate[validate$region=='Western Pacific',]
+if (sum(!complete.cases(westpac)) >0){
+  for (i in 1:nrow(westpac)){
+    for (j in 1:ncol(westpac)){
+      if (is.na(westpac[i,j])){
+        westpac[i,j] <- mean(westpac[,j], na.rm=TRUE)
+      }
+    }
+  }
+}
+
+validate <- rbind(africa, americas, eastmed, europe, sea, westpac)
+```
+
+
+```{r, echo=FALSE}
+vx <- as.matrix(validate[,-c(1,2,3)])
+
+predict <- NA
+full_predict <- predict(fullmodel, validate)
+transform_predict <- predict(mod4, validate)
+transform_predict <- transform_predict^(-2)
+ridge_predict <- predict(ridge, s = best_lambda, newx = vx)
+ridge_predict <- ridge_predict^(-2)
+lasso_predict <- predict(lasso, s = best_lambda, newx = vx)
+lasso_predict <- lasso_predict^(-2)
+elastic_predict <- predict(elastic, s = best_lambda, newx = vx)
+elastic_predict <- elastic_predict^(-2)
+predict$vals <- data.frame(cbind(validate$life_expect, full_predict,
+                                 transform_predict, ridge_predict,
+                                 lasso_predict, elastic_predict))
+colnames(predict$vals) <- c("real", "full", "transform", "ridge", "lasso", "elastic")
+```
+
+```{r, echo=FALSE}
+vn <- nrow(validate)
+full_mse <- sum((predict$vals$real-predict$vals$full)^2)/(vn-1)
+transform_mse <- sum((predict$vals$real-predict$vals$transform)^2)/(vn-1)
+ridge_mse <- sum((predict$vals$real-predict$vals$ridge)^2)/(vn-1)
+lasso_mse <- sum((predict$vals$real-predict$vals$lasso)^2)/(vn-1)
+elastic_mse <- sum((predict$vals$real-predict$vals$elastic)^2)/(vn-1)
+predict$mse <- data.frame(cbind( full_mse, transform_mse,
+                                 ridge_mse, lasso_mse,elastic_mse))
+colnames(predict$mse) <- c("full", "transform", "ridge", "lasso", "elastic")
+round(predict$mse, 3)
+
+```
+## Conclusion
+These are the MSE for the full model, the model build with AIC criteria, the ridge regression model, the lasso model, and the elastic-net (the last four all built using the $Y=Y^{-1/2}$ transformation) when tested on the non-sample data. We can see from this that the elastic-net has the lowest MSE, and is probably the best model that we have built for making new predictions.  
+
+
+\clearpage
+## Appendix
+```{r}
+summary(raw2016)
+```
+## References
+
+\begin{itemize}
+\item Boehmke, B.(2018). UC Business Analytics R Programming Guide. University of Cincinnati.
+\item MMattson. (2020, October 6). Who national life expectancy. Kaggle. Retrieved April 7, 2022, from \url{https://www.kaggle.com/datasets/mmattson/who-national-life-expectancy/metadata}
+\item Max Roser, Esteban Ortiz-Ospina and Hannah Ritchie (2013) - "Life Expectancy". Published online at OurWorldInData.org. Retrieved from: \url{https://ourworldindata.org/life-expectancy} 
+\item Michael H. Kutner, Chris Nachtsheim, John Neter (2004). Applied Linear Regression Models, 4th edition. McGraw-Hill/Irwin.  ISBN: 0072386916, 9780072386912. 
+\end{itemize}
